@@ -50,6 +50,21 @@ libz.so	libz.so.1.3.2
 libz.so.1	libz.so.1.3.2
 EOF
 
+# 补全 soname 为实体文件（关键修复）：
+# jar 打包会把符号链接压平成普通内容，且部分设备解压后无法创建软链接（FUSE/权限），
+# 导致 node 启动报 "library libz.so.1 not found"。这里直接把链接目标复制成同名实体文件，
+# 动态加载器按名字找文件即可，不依赖任何链接支持。
+cd "$P/staging/runtime/lib"
+while IFS=$'\t' read -r _link _target; do
+  case "$_link" in ""|\#*) continue ;; esac
+  [ -n "$_target" ] || continue
+  if [ ! -e "$_link" ] && [ -f "$_target" ]; then
+    cp -L "$_target" "$_link"
+    echo "  soname 实体化: $_link"
+  fi
+done < LINKS.txt
+cd - >/dev/null
+
 mkdir -p "$P/staging/dshroot/lib"
 ( cd "$H/dshroot/lib" && tar cf - --exclude='./node_modules/@deepseek-ai/dsh/node_modules/.bin' . ) \
   | ( cd "$P/staging/dshroot/lib" && tar xf - )
@@ -71,6 +86,10 @@ cp "$H/rish/rish_shizuku.dex" "$P/assets/rish_shizuku.dex"
 mkdir -p "$P/staging/rish"
 cp "$H/rish/rish_shizuku.dex" "$P/staging/rish/rish_shizuku.dex"
 chmod 644 "$P/staging/rish/rish_shizuku.dex"
+
+# 移动端适配资源：随 APK 打包，MainActivity 注入 WebView（不依赖服务器 dist）
+cp "$P/../mobile-patch/mobile.css" "$P/assets/mobile.css"
+cp "$P/../mobile-patch/mobile.js" "$P/assets/mobile.js"
 
 cp "$H/.dsh/cordis.patch.yml" "$P/staging/dshhome/"
 cp "$H/.dsh/profiles/web/cordis.patch.yml" "$P/staging/dshhome/profiles/web/"

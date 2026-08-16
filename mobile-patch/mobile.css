@@ -165,6 +165,40 @@ input[type="search"] {
   }
 }
 
+/* ============ 设置页移动端优化（基于真机截图） ============ */
+@media (max-width: 1100px) {
+  /* 左侧设置菜单：项更高、标签更清晰 */
+  ._item_19372_91 {
+    min-height: 46px;
+  }
+  ._itemLabel_19372_173 {
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  ._label_19372_123 {
+    padding: 8px 6px;
+  }
+  ._separator_19372_81 {
+    margin: 6px 0;
+  }
+
+  /* 设置说明文字：行距舒展，不再挤成竖排 */
+  p,
+  li,
+  dd,
+  dt {
+    line-height: 1.75;
+  }
+
+  /* 顶部操作按钮（如"打开配置文件"）更大更好点 */
+  ._button_kz6gm_4 {
+    min-height: 40px;
+    padding: 8px 14px;
+  }
+}
+
 /* ============ 横屏矮屏（窄高度）优化 ============ */
 @media (max-height: 520px) and (orientation: landscape) {
   html,

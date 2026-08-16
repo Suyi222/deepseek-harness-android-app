@@ -1,12 +1,15 @@
 /**
- * deepdive 移动端适配 v0.5
+ * deepdive 移动端适配 v0.5.1
  *  - 软键盘适配（VisualViewport + translateY）
  *  - 竖屏自动收起侧边栏（按文字找按钮）
  *  - 竖屏设置页「点击跳转」：菜单全宽 + 点击项目全屏内容 + 返回
- *    ★ v0.5 修复：MutationObserver 持续监听 DOM，React 重渲染后自动重新应用布局，
- *      不再"点几轮就退化"；事件委托避免节点重建丢监听
+ *    ★ MutationObserver 持续监听：React 重渲染后自动重新应用布局
+ *    ★ 幂等保护：重复注入不重复挂载；观察器只监听 childList 避免自我触发循环
  */
 (function () {
+  // 幂等保护：重复注入（每次页面加载 onPageFinished 都会注入）时不重复挂载
+  if (window.__ddMobile) return;
+  window.__ddMobile = true;
   var raf = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
 
   /* ================= 软键盘适配 ================= */
@@ -218,8 +221,10 @@
   }
 
   if (window.MutationObserver && document.body) {
+    // 只监听 childList（React 重渲染会增删节点）；不监听 attributes，
+    // 避免我们自己的样式修改触发观察器造成死循环
     new MutationObserver(function () { scheduleReapply(); })
-      .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+      .observe(document.body, { childList: true, subtree: true });
   }
 
   // 兜底周期任务
