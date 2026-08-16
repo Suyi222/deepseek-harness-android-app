@@ -86,6 +86,8 @@ public class MainActivity extends Activity {
     private final Handler ui = new Handler(Looper.getMainLooper());
     // 运行时确定的 dshroot 目录（外部公共目录优先，失败回退内部 files/payload/dshroot）
     private File dshrootDir = null;
+    private boolean watchdogStarted = false;
+    private long lastRespawnAt = 0L;
     // 引擎 node 进程（控制台"重启引擎"用）
     private Process nodeProcess = null;
 
@@ -118,7 +120,28 @@ public class MainActivity extends Activity {
         ws.setDisplayZoomControls(false);
         ws.setTextZoom(100);
         webView.setBackgroundColor(Color.parseColor("#0b0f1a"));
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new android.webkit.WebViewClient() {
+            private int errorRetries = 0;
+
+            @Override
+            public void onReceivedError(WebView view, android.webkit.WebResourceRequest request,
+                                         android.webkit.WebResourceError error) {
+                // 主框架加载失败（如 ERR_CONNECTION_REFUSED）时自动重试，直到服务器就绪
+                if (request != null && request.isForMainFrame() && errorRetries < 120) {
+                    errorRetries++;
+                    final WebView wv = view;
+                    view.postDelayed(new Runnable() {
+                        @Override public void run() { wv.loadUrl(URL_HOME); }
+                    }, 2500L);
+                }
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                errorRetries = 0;
+                injectMobileAssets(view);
+            }
+        });
 
         statusView = new TextView(this);
         statusView.setText("正在启动 DeepSeek Harness…");
@@ -232,7 +255,37 @@ public class MainActivity extends Activity {
         bp.gravity = Gravity.CENTER;
         root.addView(box, bp);
 
+        // 浮动退出按钮（右上角）：点击确认后退出 deepdive
+        Button exitBtn = new Button(this);
+        exitBtn.setText("退出");
+        exitBtn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        exitBtn.setTextColor(Color.WHITE);
+        exitBtn.setAllCaps(false);
+        exitBtn.setBackgroundColor(Color.parseColor("#66000000"));
+        exitBtn.setPadding(dp(12), dp(4), dp(12), dp(4));
+        FrameLayout.LayoutParams ebp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        ebp.gravity = Gravity.TOP | Gravity.END;
+        ebp.topMargin = dp(28);
+        ebp.rightMargin = dp(12);
+        exitBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { confirmExit(); }
+        });
+        root.addView(exitBtn, ebp);
+
         setContentView(root);
+    }
+
+    /** 退出确认对话框（浮动按钮与系统返回键共用） */
+    private void confirmExit() {
+        new AlertDialog.Builder(this)
+                .setTitle("退出 deepdive")
+                .setMessage("确定要退出吗？服务器将停止运行。")
+                .setPositiveButton("退出", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) { finish(); }
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     // ============ 控制台（替换首次权限页，跟随系统深/浅色）============
@@ -246,15 +299,6 @@ public class MainActivity extends Activity {
     private int cSub() { return Color.parseColor(isDark() ? "#8b98a9" : "#6b7280"); }
     private int cGreen() { return Color.parseColor("#1f9d6b"); }
     private int cRed() { return Color.parseColor("#d9503f"); }
-
-
-
-
-
-
-
-
-
 
     private long deleteRecursive(File f) {
         if (f == null || !f.exists()) return 0;
@@ -274,9 +318,6 @@ public class MainActivity extends Activity {
         }
         return total;
     }
-
-
-
 
     // 捕获未处理异常，写到外部崩溃日志（便于无 adb 时排查闪退）
     private void installCrashHandler() {
@@ -301,7 +342,6 @@ public class MainActivity extends Activity {
             }
         });
     }
-
 
     // 清理外部公共目录下遗留的 .trash-* 垃圾目录（清空数据 rename 后后台删除未完成）。
     private void cleanupTrashDirs(File externalRoot) {
@@ -1123,7 +1163,65 @@ public class MainActivity extends Activity {
         loadHome();
     }
 
+    /** node 看门狗：node 进程死亡且服务不可用时自动重启引擎并刷新页面 */
+    private void startWatchdog() {
+        if (watchdogStarted) return;
+        watchdogStarted = true;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                while (!Thread.currentThread().isInterrupted()) {
+                    try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
+                    try {
+                        if (nodeProcess == null) continue;
+                        boolean serverUp = healthOk();
+                        boolean nodeAlive = nodeProcess.isAlive();
+                        if (!serverUp && !nodeAlive) {
+                            long now = System.currentTimeMillis();
+                            if (now - lastRespawnAt < 20000) continue; // 避免风车重启
+                            lastRespawnAt = now;
+                            Log.w(TAG, "node died, respawning engine");
+                            spawnNode(new File(getFilesDir(), "payload"));
+                            final WebView wv = webView;
+                            ui.post(new Runnable() {
+                                @Override public void run() { wv.loadUrl(URL_HOME); }
+                            });
+                        }
+                    } catch (Throwable t) {
+                        Log.w(TAG, "watchdog error", t);
+                    }
+                }
+            }
+        }, "node-watchdog").start();
+    }
+
+    /** 读取 APK 资产下的移动端 CSS/JS 并强制注入 WebView（不依赖服务器 dist，确保生效） */
+    private void injectMobileAssets(WebView view) {
+        try {
+            byte[] css = readAssetBytes("mobile.css");
+            byte[] js = readAssetBytes("mobile.js");
+            String cssB64 = android.util.Base64.encodeToString(css, android.util.Base64.NO_WRAP);
+            String jsB64 = android.util.Base64.encodeToString(js, android.util.Base64.NO_WRAP);
+            final String script = "(function(){try{if(!document.getElementById('dd-mobile-css')){var s=document.createElement('style');s.id='dd-mobile-css';s.textContent=atob('"
+                    + cssB64 + "');document.head.appendChild(s);}}catch(e){}try{if(!document.getElementById('dd-mobile-js')){var j=document.createElement('script');j.id='dd-mobile-js';j.textContent=atob('"
+                    + jsB64 + "');document.body.appendChild(j);}catch(e){}})();";
+            view.evaluateJavascript(script, null);
+        } catch (Throwable t) {
+            Log.w(TAG, "inject mobile assets failed", t);
+        }
+    }
+
+    private byte[] readAssetBytes(String name) throws IOException {
+        java.io.InputStream in = getAssets().open(name);
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        byte[] b = new byte[8192];
+        int n;
+        while ((n = in.read(b)) > 0) bos.write(b, 0, n);
+        in.close();
+        return bos.toByteArray();
+    }
+
     private void loadHome() {
+        startWatchdog();
         ui.post(new Runnable() {
             @Override public void run() {
                 statusView.setVisibility(View.GONE);
@@ -1194,7 +1292,11 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        // 有历史先回退（可关掉侧边栏/返回上一页）；没有历史则询问是否退出
+        if (webView != null && webView.canGoBack()) {
+            webView.goBack();
+            return;
+        }
+        confirmExit();
     }
 }
