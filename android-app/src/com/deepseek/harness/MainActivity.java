@@ -68,6 +68,9 @@ public class MainActivity extends Activity {
     private static final String[] FORCE_OVERWRITE_PREFIXES = {
         "dshroot/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-tool-shizuku/",
         "dshroot/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-tool-android/",
+        "dshroot/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-web-frontend/dist/mobile.css",
+        "dshroot/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-web-frontend/dist/mobile.js",
+        "dshroot/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-web-frontend/dist/index.html",
         "dshroot/lib/node_modules/@deepseek-ai/dsh/package.json"
     };
     // 外部 dshroot 解压完成标记（App 在 dshroot 补齐后写入；清空/重置时随目录删除）。
@@ -139,7 +142,6 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 errorRetries = 0;
-                injectMobileAssets(view);
             }
         });
 
@@ -1192,32 +1194,6 @@ public class MainActivity extends Activity {
                 }
             }
         }, "node-watchdog").start();
-    }
-
-    /** 读取 APK 资产下的移动端 CSS/JS 并强制注入 WebView（不依赖服务器 dist，确保生效） */
-    private void injectMobileAssets(WebView view) {
-        try {
-            byte[] css = readAssetBytes("mobile.css");
-            byte[] js = readAssetBytes("mobile.js");
-            String cssB64 = android.util.Base64.encodeToString(css, android.util.Base64.NO_WRAP);
-            String jsB64 = android.util.Base64.encodeToString(js, android.util.Base64.NO_WRAP);
-            final String script = "(function(){try{if(!document.getElementById('dd-mobile-css')){var s=document.createElement('style');s.id='dd-mobile-css';s.textContent=atob('"
-                    + cssB64 + "');document.head.appendChild(s);}}catch(e){}try{if(!document.getElementById('dd-mobile-js')){var j=document.createElement('script');j.id='dd-mobile-js';j.textContent=atob('"
-                    + jsB64 + "');document.body.appendChild(j);}catch(e){}})();";
-            view.evaluateJavascript(script, null);
-        } catch (Throwable t) {
-            Log.w(TAG, "inject mobile assets failed", t);
-        }
-    }
-
-    private byte[] readAssetBytes(String name) throws IOException {
-        java.io.InputStream in = getAssets().open(name);
-        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
-        byte[] b = new byte[8192];
-        int n;
-        while ((n = in.read(b)) > 0) bos.write(b, 0, n);
-        in.close();
-        return bos.toByteArray();
     }
 
     private void loadHome() {
