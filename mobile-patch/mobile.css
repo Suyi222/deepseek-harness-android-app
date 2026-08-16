@@ -1,33 +1,48 @@
-/* DeepSeek Harness 移动端（横屏）触摸优化
-   叠加在 DSH 原生界面上，不删任何功能，只优化触屏体验 */
+/* ============================================================
+   deepdive 手机版 UI 优化 v0.2
+   ------------------------------------------------------------
+   本版重写说明：
+   - 旧版 mobile.css 使用的类名（gdEzaW_/hHd-Xa_/pbvGtq_/qSYn7G_ 等）
+     在真实前端构建中不存在，属"死代码"；本版全部替换为
+     0.1.0-rc.6 真实构建中的类名（_rail_1hk8w、_wrap_1ao1y、
+     _answer_d4nqi、_markdown_1nba0、_block_10eou 等）。
+   - 新增：竖屏适配（原 APK 锁横屏）、鲸鱼蓝皮肤、触摸优化。
+   - 不删除任何功能，只做视觉与触控优化。
+   ============================================================ */
+
 :root {
-  /* 触摸友好：点击目标最小 40px */
-  --ds-mobile-tap: 40px;
+  /* 触摸友好：点击目标最小 44px */
+  --ds-mobile-tap: 44px;
+  /* 鲸鱼蓝皮肤（与桌面版 deepdive 一致） */
+  --dsw-alias-brand-primary: #4D6BFE !important;
+  --dsw-alias-brand-primary-hover: #5B7CFF !important;
+  --dsw-alias-brand-primary-active: #3D5AE8 !important;
+}
+[data-ds-dark-theme] {
+  --dsw-alias-brand-primary: #4D6BFE !important;
+  --dsw-alias-brand-primary-hover: #5B7CFF !important;
+  --dsw-alias-brand-primary-active: #3D5AE8 !important;
 }
 
-/* 触屏：去掉 hover 依赖，扩大点击区域 */
-button, [role="button"], .icon-btn {
+/* ---------- 基础触摸优化 ---------- */
+button,
+[role="button"],
+.icon-btn,
+input,
+select,
+textarea {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-/* 消息气泡在手机上不要太宽，留出呼吸感 */
-@media (max-width: 900px) {
-  html, body {
-    font-size: 15px;
-  }
-  /* 对话主体横向留白收紧，多给文字空间 */
-  .gdEzaW_userStack {
-    max-width: min(480px, 88%) !important;
-  }
+/* 16px 防止聚焦时页面缩放 */
+textarea,
+input[type="text"],
+input[type="search"] {
+  font-size: 16px !important;
 }
 
-/* 输入框触摸优化 */
-textarea, input[type="text"], input[type="search"] {
-  font-size: 16px !important; /* 16px 防止 iOS/部分安卓聚焦时缩放 */
-}
-
-/* 滚动条在触屏上更细、不占视觉 */
+/* 触屏滚动条更细 */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -36,77 +51,133 @@ textarea, input[type="text"], input[type="search"] {
   border-radius: 4px;
 }
 
-/* 侧栏折叠按钮（rail 上的图标）在触屏上更好点 */
-.hHd-Xa_iconButton {
-  min-width: var(--ds-mobile-tap);
-  min-height: var(--ds-mobile-tap);
-}
+/* ---------- 真实类名适配 ---------- */
 
-/* 长按菜单/拖拽条在触屏上禁用干扰，避免误触 */
-@media (pointer: coarse) {
-  .pI_x6G_handle {
-    width: 12px; /* 拖拽条加宽，手指能按住 */
-  }
-}
-
-/* ============ 插件管理页（设置里的 Plugins / 插件清单）移动端适配 ============ */
-/* 插件设置 tab 标签：点击区太小（原本 7px×1px），横屏触屏难点 */
-.pbvGtq_tabs {
-  gap: 14px;
-  overflow-x: auto;                 /* 标签多时可横滑，避免溢出 */
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.pbvGtq_tabs::-webkit-scrollbar { display: none; }
-.pbvGtq_tab {
-  min-height: 44px;                 /* 触屏点击目标 */
-  padding: 10px 6px 12px;
-  font-size: 15px;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-}
-
-/* 插件清单搜索框：36px 太矮，触屏难点 + 聚焦缩放 */
-.qSYn7G_search input {
+/* 输入框/搜索框：加大点击与输入区 */
+._wrap_1ao1y_1 {
   height: 44px;
-  font-size: 16px;
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0 12px;
+}
+._input_1ao1y_25 {
+  font-size: 16px !important;
+  line-height: 28px;
 }
 
-/* 插件卡片点击区：加大，方便手指点开/收起 */
-.qSYn7G_cardContent {
-  min-height: 60px;
-  padding: 14px 16px;
-  touch-action: manipulation;
+/* 侧栏图标行：图标项触屏友好 */
+._rail_1hk8w_10 {
+  gap: 12px;
+}
+._item_1hk8w_28 {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+}
+._thumbnail_1hk8w_35 {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
 }
 
-/* 卡片标题/详情在窄屏换行不挤压 */
-.qSYn7G_cardTitle {
-  font-size: 15px;
-}
-.qSYn7G_details {
-  grid-template-columns: 86px minmax(0,1fr);  /* 标签列略加宽，防中文换行挤一起 */
-}
-.qSYn7G_entryValue,
-.qSYn7G_details dd {
-  font-size: 12.5px;
-}
-
-/* 失败重试按钮：点击区太小（原本 4px×10px） */
-.qSYn7G_failure button {
+/* 菜单项：点击区加大 */
+._item_19372_91 {
   min-height: 40px;
-  padding: 8px 18px;
-  font-size: 14px;
+}
+._label_19372_123 {
+  padding: 6px 4px;
 }
 
-/* 横屏矮屏（高度 < 500px）：插件卡片改单列，减少横向拥挤，纵向滚动查看 */
-@media (max-height: 500px) and (orientation: landscape) {
-  .qSYn7G_cards {
-    grid-template-columns: minmax(0, 1fr);
+/* 消息/回答内容：移动端全宽阅读，不挤压 */
+._answer_d4nqi_19,
+._markdown_1nba0_5,
+._content_biesw_99 {
+  max-width: 100% !important;
+}
+
+/* 工具调用卡片：全宽 + 可读性 */
+._block_10eou_7,
+._output_10eou_162,
+._command_10eou_122 {
+  max-width: 100% !important;
+}
+
+/* 表格：窄屏可横向滚动 */
+._tableScroll_1nba0_174 {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 图片画廊：间距收紧 */
+._gallery_nrncx_1 {
+  gap: 8px;
+}
+
+/* 空状态 / 引导卡：宽度自适应 */
+._illustration_rcb0a_39,
+._card_9gj4p_13 {
+  max-width: 100% !important;
+}
+
+/* ============ 竖屏专项适配 ============ */
+@media (orientation: portrait) {
+  html,
+  body {
+    font-size: 15.5px;
   }
-  .pbvGtq_section,
-  .qSYn7G_section {
-    max-width: 100%;
+
+  /* 会话/回答内容宽度：竖屏给足空间 */
+  ._answer_d4nqi_19,
+  ._markdown_1nba0_5 {
+    width: 100%;
+    max-width: 100% !important;
+  }
+
+  /* 工具卡片、代码块：竖屏不横向溢出 */
+  ._block_10eou_7,
+  ._output_10eou_162,
+  ._content_biesw_99 {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* 底部输入区：触摸目标更大、更易点击 */
+  ._wrap_1ao1y_1 {
+    height: 48px;
+    border-radius: 14px;
+  }
+  ._input_1ao1y_25 {
+    font-size: 16px !important;
+  }
+
+  /* 侧栏图标：竖屏下略收紧，避免挤占内容 */
+  ._rail_1hk8w_10 {
+    gap: 8px;
+  }
+  ._item_1hk8w_28 {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+  }
+  ._thumbnail_1hk8w_35 {
+    width: 44px;
+    height: 44px;
   }
 }
 
+/* ============ 横屏矮屏（窄高度）优化 ============ */
+@media (max-height: 520px) and (orientation: landscape) {
+  html,
+  body {
+    font-size: 14.5px;
+  }
+  ._rail_1hk8w_10 {
+    gap: 8px;
+  }
+  ._item_1hk8w_28,
+  ._thumbnail_1hk8w_35 {
+    flex-basis: 44px;
+    width: 44px;
+    height: 44px;
+  }
+}

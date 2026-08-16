@@ -15,15 +15,15 @@
 ```
 android-app/             APK 构建工程
 ├── build.sh             一键打包脚本
-├── AndroidManifest.xml  包名/targetSdk(28)/锁横屏/Shizuku 声明
+├── AndroidManifest.xml  包名/targetSdk(28)/竖屏横屏自由旋转/Shizuku 声明
 ├── libs/                Shizuku 官方 aar（api/provider/aidl 13.1.5）
 ├── res/                 图标 + 字符串资源
 └── src/.../MainActivity.java   Android 原生壳（权限页/加载页/引擎启动）
 
 mobile-patch/            移动端适配（注入 DSH 前端，不覆盖原生代码）
 ├── inject.sh            注入脚本（mobile.css + mobile.js 到 dist）
-├── mobile.css           触摸优化 + 插件管理页 UI 适配
-└── mobile.js            软键盘适配（VisualViewport 方案）
+├── mobile.css           触摸优化 + 竖屏适配 + 插件管理页 UI 适配（v0.2：类名改用真实构建类名）
+└── mobile.js            软键盘适配（VisualViewport 方案，竖屏横屏通用）
 
 plugins/                 手机端自定义 DSH 工具插件
 ├── dsh-tool-shizuku/    特权 shell（Shizuku 通道）
